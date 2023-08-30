@@ -36,10 +36,7 @@ async def download_file(session, hash, url):
             print("Unable to get file type")
             return
 
-        if type == "video/x-matroska":
-            ext = "mkv"
-        else:
-            ext = mimetypes.guess_extension(type)
+        ext = "mkv" if type == "video/x-matroska" else mimetypes.guess_extension(type)
         if not ext:
             DL_STATUS[hash] = {"message": "Unable to get file extension"}
             print("Unable to get file extension")
@@ -48,7 +45,7 @@ async def download_file(session, hash, url):
             ext = ext.lower().strip(" .")
 
         done = 0
-        async with aiofiles.open("static/uploads/" + hash + ".temp", "wb") as f:
+        async with aiofiles.open(f"static/uploads/{hash}.temp", "wb") as f:
             async for data in response.content.iter_chunked(1024):
                 DL_STATUS[hash] = {
                     "total": total,
@@ -58,8 +55,8 @@ async def download_file(session, hash, url):
                 # print(done)
                 await f.write(data)
 
-        async with aiofiles.open("static/uploads/" + hash + ".temp", "rb") as f:
-            async with aiofiles.open("static/uploads/" + hash + "." + ext, "wb") as f2:
+        async with aiofiles.open(f"static/uploads/{hash}.temp", "rb") as f:
+            async with aiofiles.open(f"static/uploads/{hash}.{ext}", "wb") as f2:
                 await f2.write(await f.read())
 
         DL_STATUS[hash] = {"message": "complete"}

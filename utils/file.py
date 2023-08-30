@@ -33,7 +33,7 @@ import os, random
 
 def get_file_hash():
     while True:
-        hash = "".join([random.choice(ascii_letters + digits) for n in range(10)])
+        hash = "".join([random.choice(ascii_letters + digits) for _ in range(10)])
         for i in os.listdir("static/uploads"):
             if i.startswith(hash):
                 continue

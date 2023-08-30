@@ -34,43 +34,40 @@ async def upload_file(request):
     if field is None:
         return web.Response(text="No file uploaded.", content_type="text/plain")
 
-    if allowed_file(filename):
-        if filename == "":
-            return web.Response(
-                text="No file selected.", content_type="text/plain", status=400
-            )
-
-        filename = secure_filename(filename)
-        extension = filename.rsplit(".", 1)[1]
-        hash = get_file_hash()
-
-        while is_hash_in_db(hash):
-            hash = get_file_hash()
-            print(hash)
-
-        try:
-            with open(
-                os.path.join("static/uploads", hash + "." + extension), "wb"
-            ) as f:
-                while True:
-                    chunk = await field.read_chunk()
-                    if not chunk:
-                        break
-                    f.write(chunk)
-        except Exception as e:
-            return web.Response(
-                text=f"Error saving file: {str(e)}",
-                status=500,
-                content_type="text/plain",
-            )
-
-        save_file_in_db(filename, hash)
-        UPLOAD_TASK.append((hash, filename, extension))
-        return web.Response(text=hash, content_type="text/plain", status=200)
-    else:
+    if not allowed_file(filename):
         return web.Response(
             text="File type not allowed", status=400, content_type="text/plain"
         )
+    if filename == "":
+        return web.Response(
+            text="No file selected.", content_type="text/plain", status=400
+        )
+
+    filename = secure_filename(filename)
+    extension = filename.rsplit(".", 1)[1]
+    hash = get_file_hash()
+
+    while is_hash_in_db(hash):
+        hash = get_file_hash()
+        print(hash)
+
+    try:
+        with open(os.path.join("static/uploads", f"{hash}.{extension}"), "wb") as f:
+            while True:
+                chunk = await field.read_chunk()
+                if not chunk:
+                    break
+                f.write(chunk)
+    except Exception as e:
+        return web.Response(
+            text=f"Error saving file: {str(e)}",
+            status=500,
+            content_type="text/plain",
+        )
+
+    save_file_in_db(filename, hash)
+    UPLOAD_TASK.append((hash, filename, extension))
+    return web.Response(text=hash, content_type="text/plain", status=200)
 
 
 async def home(_):
@@ -115,17 +112,14 @@ async def process(request):
     global PROGRESS
     hash = request.match_info["hash"]
 
-    data = PROGRESS.get(hash)
-    if data:
-        if data.get("message"):
-            data = {"message": data["message"]}
-            return web.json_response(data)
-        else:
-            data = {"current": data["done"], "total": data["total"]}
-            return web.json_response(data)
-
-    else:
+    if not (data := PROGRESS.get(hash)):
         return web.Response(text="Not Found", status=404, content_type="text/plain")
+    data = (
+        {"message": data["message"]}
+        if data.get("message")
+        else {"current": data["done"], "total": data["total"]}
+    )
+    return web.json_response(data)
 
 
 async def remote_status(request):
@@ -133,23 +127,19 @@ async def remote_status(request):
     print(DL_STATUS)
     hash = request.match_info["hash"]
 
-    data = DL_STATUS.get(hash)
-    if data:
-        if data.get("message"):
-            data = {"message": data["message"]}
-            return web.json_response(data)
-        else:
-            data = {"current": data["done"], "total": data["total"]}
-            return web.json_response(data)
-
-    else:
+    if not (data := DL_STATUS.get(hash)):
         return web.Response(text="Not Found", status=404, content_type="text/plain")
+    data = (
+        {"message": data["message"]}
+        if data.get("message")
+        else {"current": data["done"], "total": data["total"]}
+    )
+    return web.json_response(data)
 
 
 async def download(request: web.Request):
     hash = request.match_info["hash"]
-    id = is_hash_in_db(hash)
-    if id:
+    if id := is_hash_in_db(hash):
         id = id["msg_id"]
         return await media_streamer(request, id)
 
