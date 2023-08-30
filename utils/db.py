@@ -19,8 +19,4 @@ def save_file_in_db(filename, hash, msg_id=None):
 
 
 def is_hash_in_db(hash):
-    data = filesdb.find_one({"hash": hash})
-    if data:
-        return data
-    else:
-        return None
+    return data if (data := filesdb.find_one({"hash": hash})) else None
